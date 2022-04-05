@@ -133,15 +133,15 @@ void StarterBot::trainAdditionalMarines()
     const int marinesOwned = Tools::CountUnitsOfType(marineType, BWAPI::Broodwar->self()->getUnits());
     if (marinesOwned < marinesWanted)
     {
-        // get the unit pointer to my depot
-        const BWAPI::Unit myBarrack = Tools::GetUnitOfType(BWAPI::UnitTypes::Terran_Barracks);
-
-        // if we have a valid depot unit and it's currently not training something, train a worker
-        // there is no reason for a bot to ever use the unit queueing system, it just wastes resources
-        if (myBarrack && !myBarrack->isTraining()) 
-        { 
-            BWAPI::Broodwar->printf("Started training %s", marineType.getName().c_str());
-            myBarrack->train(marineType); 
+        const BWAPI::Unitset& myUnits = BWAPI::Broodwar->self()->getUnits();
+        for (auto& unit : myUnits)
+        {
+            // Check the unit type, if it is an idle barrack, train more marine
+            if (unit->getType() == BWAPI::UnitTypes::Terran_Barracks && !unit->isTraining())
+            {
+                BWAPI::Broodwar->printf("Started training %s", marineType.getName().c_str());
+                unit->train(marineType);
+            }
         }
     }
 
