@@ -15,8 +15,9 @@ public:
     // helper functions to get you started with bot programming and learn the API
     void sendIdleWorkersToMinerals();
     void trainAdditionalWorkers();
-    void buildAdditionalSupply(int requiredSupply);
-	void StarterBot::buildRefinery(int requiredRefinery);
+	void trainAdditionalMarines();
+    void buildAdditionalSupply();
+	void build(BWAPI::UnitType type, int required);
     void drawDebugInformation();
 
     // functions that are triggered by various BWAPI events from main.cpp
