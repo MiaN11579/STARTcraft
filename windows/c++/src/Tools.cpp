@@ -51,6 +51,22 @@ BWAPI::Unit Tools::GetUnitOfType(BWAPI::UnitType type)
     return nullptr;
 }
 
+BWAPI::Unit Tools::GetWorkerUnit()
+{
+    // For each unit that we own
+    for (auto& unit : BWAPI::Broodwar->self()->getUnits())
+    {
+        // if the unit is of the correct type, and it actually has been constructed, return it
+        if (unit->getType() == BWAPI::Broodwar->self()->getRace().getWorker() && unit->isCompleted())
+        {
+            return unit;
+        }
+    }
+
+    // If we didn't find a valid unit to return, make sure we return nullptr
+    return nullptr;
+}
+
 BWAPI::Unit Tools::GetDepot()
 {
     const BWAPI::UnitType depot = BWAPI::Broodwar->self()->getRace().getResourceDepot();
@@ -75,7 +91,6 @@ bool Tools::BuildBuilding(BWAPI::UnitType type)
     int maxBuildRange = 64;
     bool buildingOnCreep = type.requiresCreep();
     BWAPI::TilePosition buildPos = BWAPI::Broodwar->getBuildLocation(type, desiredPos, maxBuildRange, buildingOnCreep);
-    BWAPI::Broodwar->printf("Started Building %s at %d,%d", type.getName().c_str(), buildPos.x, buildPos.y);
     return builder->build(type, buildPos);
 }
 
