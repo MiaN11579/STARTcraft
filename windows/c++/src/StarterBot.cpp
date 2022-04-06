@@ -30,7 +30,6 @@ void StarterBot::onEnd(bool isWinner)
 // Called on each frame of the game
 void StarterBot::onFrame()
 {
-
     const BWAPI::UnitType workerType = BWAPI::Broodwar->self()->getRace().getWorker();
     const int workersOwned = Tools::CountUnitsOfType(workerType, BWAPI::Broodwar->self()->getUnits());
     const BWAPI::UnitType supply = BWAPI::Broodwar->self()->getRace().getSupplyProvider();
@@ -125,7 +124,7 @@ void StarterBot::trainAdditionalWorkers()
 
 }
 
-// Train more workers so we can gather more income
+// Train more marines in barracks
 void StarterBot::trainAdditionalMarines()
 {
     const BWAPI::UnitType marineType = BWAPI::UnitTypes::Terran_Marine;
@@ -166,7 +165,7 @@ void StarterBot::buildAdditionalSupply()
     }
 }
 
-// Build more supply if we are going to run out soon
+// Build given type of building to given required number
 void StarterBot::build(BWAPI::UnitType type, int required)
 {
     const int typeOwned = Tools::CountUnitsOfType(type, BWAPI::Broodwar->self()->getUnits());

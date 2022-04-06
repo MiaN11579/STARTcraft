@@ -75,6 +75,7 @@ bool Tools::BuildBuilding(BWAPI::UnitType type)
     int maxBuildRange = 64;
     bool buildingOnCreep = type.requiresCreep();
     BWAPI::TilePosition buildPos = BWAPI::Broodwar->getBuildLocation(type, desiredPos, maxBuildRange, buildingOnCreep);
+    BWAPI::Broodwar->printf("Started Building %s at %d,%d", type.getName().c_str(), buildPos.x, buildPos.y);
     return builder->build(type, buildPos);
 }
 
