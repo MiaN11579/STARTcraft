@@ -96,19 +96,7 @@ void StarterBot::onFrame()
 
     if (workersBuilt >= 10)
     {
-        // code for sending the scout around the map.
-        auto &startLocations = BWAPI::Broodwar->getStartLocations();
-        for (BWAPI::TilePosition tp : startLocations)
-        {
-            if (BWAPI::Broodwar->isExplored(tp))
-            {
-                BWAPI::TilePosition pos(tp);
-                continue;
-            }
-            BWAPI::Position pos(tp);
-            m_scout->move(pos);
-            break;
-        }
+        scout(); // scout the map
         build(supply, 3, m_builder1);
     }
 
@@ -120,16 +108,12 @@ void StarterBot::onFrame()
     if (refineryBuilt >= 1)
     {
         build(supply, 3, m_builder1);
-        // BWAPI::Unit closestRefinery1 = Tools::GetClosestUnitTo(m_refinery1, BWAPI::Broodwar->getGeysers());
-        // BWAPI::Unit closestRefinery2 = Tools::GetClosestUnitTo(m_refinery2, BWAPI::Broodwar->getGeysers());
-        // BWAPI::Unit closestRefinery3 = Tools::GetClosestUnitTo(m_refinery3, BWAPI::Broodwar->getGeysers());
-        // if (closestRefinery1) { m_refinery1->rightClick(closestRefinery1); }
-        // if (closestRefinery2) { m_refinery1->rightClick(closestRefinery2); }
-        // if (closestRefinery3) { m_refinery1->rightClick(closestRefinery3); }
+        sendIdleWorkersToRefineries();
     }
     if (barracksBuilt >= 2)
     {
         build(factory, 1, m_builder2);
+        build(academy, 1, m_builder1);
     }
 
     // Draw unit health bars, which brood war unfortunately does not do
@@ -162,6 +146,27 @@ void StarterBot::sendIdleWorkersToMinerals()
     }
 }
 
+// Send 3 workers to collect gas 
+void StarterBot::sendIdleWorkersToRefineries()
+{
+    const BWAPI::Unitset& myUnits = BWAPI::Broodwar->self()->getUnits();
+    for (auto& unit : myUnits)
+    {
+        // Find a refinery
+        if (unit->getType() == refinery)
+        {
+            auto command = m_refinery1->getLastCommand();
+            if (command.getTarget() != unit) // Check if worker is already assigned to refinery
+            {
+                m_refinery1->rightClick(unit);
+                m_refinery2->rightClick(unit);
+                m_refinery3->rightClick(unit);
+            }
+            return;
+        }
+    }
+}
+
 // Train more workers so we can gather more income
 void StarterBot::trainAdditionalWorkers()
 {
@@ -182,11 +187,32 @@ void StarterBot::trainAdditionalWorkers()
     }
 }
 
+// Train more medics in barracks
+void StarterBot::trainAdditionalMedics()
+{
+    const BWAPI::UnitType medicType = BWAPI::UnitTypes::Terran_Medic;
+    const int medicsWanted = 5;
+    const int medicsOwned = Tools::CountUnitsOfType(medicType, BWAPI::Broodwar->self()->getUnits());
+    if (medicsOwned < medicsWanted)
+    {
+        const BWAPI::Unitset &myUnits = BWAPI::Broodwar->self()->getUnits();
+        for (auto &unit : myUnits)
+        {
+            // Check the unit type, if it is an idle barrack, train more marine
+            if (unit->getType() == BWAPI::UnitTypes::Terran_Barracks && unit->isCompleted() && !unit->isTraining())
+            {
+                bool train = unit->train(medicType);
+                if (train) { BWAPI::Broodwar->printf("Started training %s", medicType.getName().c_str()); }
+            }
+        }
+    }
+}
+
 // Train more marines in barracks
 void StarterBot::trainAdditionalMarines()
 {
     const BWAPI::UnitType marineType = BWAPI::UnitTypes::Terran_Marine;
-    const int marinesWanted = 10;
+    const int marinesWanted = 5;
     const int marinesOwned = Tools::CountUnitsOfType(marineType, BWAPI::Broodwar->self()->getUnits());
     if (marinesOwned < marinesWanted)
     {
@@ -196,14 +222,17 @@ void StarterBot::trainAdditionalMarines()
             // Check the unit type, if it is an idle barrack, train more marine
             if (unit->getType() == BWAPI::UnitTypes::Terran_Barracks && unit->isCompleted() && !unit->isTraining())
             {
-                BWAPI::Broodwar->printf("Started training %s", marineType.getName().c_str());
-                unit->train(marineType);
+                bool train = unit->train(marineType);
+                if (train) { BWAPI::Broodwar->printf("Started training %s", marineType.getName().c_str()); }
             }
         }
-    } 
-    else 
+    }
+    else
     {
-        attackWithMarines();
+        // attackWithMarines();
+        build(academy, 1, m_builder1);
+        if (academyBuilt >= 1) {trainAdditionalMedics();}
+        
     }
 }
 
@@ -217,6 +246,24 @@ void StarterBot::attackWithMarines()
             unit->attack(BWAPI::Position(BWAPI::Broodwar->enemy()->getStartLocation())); // not working rn
         }
     }
+}
+
+void StarterBot::scout() 
+{
+    // code for sending the scout around the map.
+    auto &startLocations = BWAPI::Broodwar->getStartLocations();
+    for (BWAPI::TilePosition tp : startLocations)
+    {
+        if (BWAPI::Broodwar->isExplored(tp))
+        {
+            continue;
+        }
+        BWAPI::Position pos(tp);
+        m_scout->move(pos);
+        return;
+    }
+    // if we have explored all start locations, return scout home
+    m_scout->move(BWAPI::Position(BWAPI::Broodwar->self()->getStartLocation()));
 }
 
 // Build more supply if we are going to run out soon
@@ -303,13 +350,14 @@ void StarterBot::onUnitComplete(BWAPI::Unit unit)
         workersBuilt++;
         BWAPI::Broodwar->printf("worker: %d\n", workersBuilt);
     }
-    else if (unit->getType() == supply && unit->isCompleted()) { supplyBuilt++; }
     else if (unit->getType() == barrack && unit->isCompleted())
     {
         barracksBuilt++;
         BWAPI::Broodwar->printf("barrack: %d\n", barracksBuilt);
     }
+    else if (unit->getType() == supply && unit->isCompleted()) { supplyBuilt++; }
     else if (unit->getType() == refinery && unit->isCompleted()) { refineryBuilt++; }
+    else if (unit->getType() == academy && unit->isCompleted()) { academyBuilt++; }
     else if (unit->getType() == factory && unit->isCompleted()) { factoryBuilt++; }
     else if (unit->getType() == starport && unit->isCompleted()) { starportBuilt++; }
     else if (unit->getType() == controlTower && unit->isCompleted()) { controlTowerBuilt++; }

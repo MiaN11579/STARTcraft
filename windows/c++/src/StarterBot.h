@@ -30,6 +30,7 @@ class StarterBot
 	int supplyBuilt = 0;
 	int refineryBuilt = 0;
 	int barracksBuilt = 0;
+	int academyBuilt = 0;
 	int factoryBuilt = 0;
 	int starportBuilt = 0;
 	int controlTowerBuilt = 0;
@@ -44,9 +45,12 @@ public:
 
 	// helper functions to get you started with bot programming and learn the API
 	void sendIdleWorkersToMinerals();
+	void sendIdleWorkersToRefineries();
 	void trainAdditionalWorkers();
 	void trainAdditionalMarines();
+	void trainAdditionalMedics();
 	void buildAdditionalSupply();
+	void scout();
 	void attackWithMarines();
 	void build(BWAPI::UnitType type, int required, BWAPI::Unit builder);
 	void drawDebugInformation();
