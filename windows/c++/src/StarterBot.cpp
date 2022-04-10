@@ -31,31 +31,24 @@ void StarterBot::onFrame()
 {
     const int workersOwned = Tools::CountUnitsOfType(workerType, BWAPI::Broodwar->self()->getUnits());
     // get various things which will be used later on.
-    const int mineralCash = BWAPI::Broodwar->self()->minerals();
-    const int mineralTotal = BWAPI::Broodwar->self()->gatheredMinerals();
-    const int gasCash = BWAPI::Broodwar->self()->gas();
-    const int gasTotal = BWAPI::Broodwar->self()->gatheredGas();
-    const int supplyUsed = BWAPI::Broodwar->self()->supplyUsed();
-    const int supplyTotal = BWAPI::Broodwar->self()->supplyTotal();
+    mineralCash = BWAPI::Broodwar->self()->minerals();
+    mineralTotal = BWAPI::Broodwar->self()->gatheredMinerals();
+    gasCash = BWAPI::Broodwar->self()->gas();
+    gasTotal = BWAPI::Broodwar->self()->gatheredGas();
+    supplyUsed = BWAPI::Broodwar->self()->supplyUsed();
+    supplyTotal = BWAPI::Broodwar->self()->supplyTotal();
     // Update our MapTools information
     m_mapTools.onFrame();
 
-    // keep building workers untill we reach 24
+    // keep building workers untill we reach 25
     if (workersBuilt < 25)
     {
-        // i put the iff loop in becuase the function kept making workers after it reached 24.
+        // i put the if loop in because the function kept making workers after it reached 25.
         trainAdditionalWorkers();
     }
 
     // continously send any idle workers to mine minerals
     sendIdleWorkersToMinerals();
-
-    if (refineryBuilt >= 1 && workersBuilt >= 12)
-    {
-        // i put this here so that the workers that would be sent to gather
-        // gas will still gather minerals while the refinery is being built.
-        sendIdleWorkersToRefineries();
-    }
 
     if (workersBuilt >= 5)
     {
@@ -79,8 +72,8 @@ void StarterBot::onFrame()
 
     if (barracksBuilt >= 1)
     {
-        build(barrack, 2, m_builder3);
         build(supply, 2, m_builder4);
+        build(barrack, 2, m_builder3);
         if (medCounter == 3)
         {
             trainMedic();
@@ -119,33 +112,38 @@ void StarterBot::onFrame()
         build(academy, 1, m_builder3);
     }
 
+    if (academyBuilt >= 1)
+    {
+        m_academy->upgrade(BWAPI::UpgradeTypes::U_238_Shells);
+    }
+
     if (supplyBuilt >= 2)
     {
-        build(supply, 3, m_builder4);
         build(supply, 4, m_builder1);
     }
 
-    if (supplyBuilt >= 4 && (supplyUsed == supplyTotal - 4))
+    if (supplyBuilt >= 4 && (supplyUsed >= supplyTotal - 4))
     {
         build(supply, 5, m_builder2);
     }
 
-    if (supplyBuilt >= 5 && (supplyUsed == supplyTotal - 4))
+    if (supplyBuilt >= 5 && (supplyUsed >= supplyTotal - 4))
     {
         build(supply, 6, m_builder3);
+        m_engeneering->upgrade(BWAPI::UpgradeTypes::Terran_Infantry_Armor);
     }
 
-    if (supplyBuilt >= 6 && (supplyUsed == supplyTotal - 4))
+    if (supplyBuilt >= 6 && (supplyUsed >= supplyTotal - 4))
     {
         build(supply, 7, m_builder4);
     }
 
-    if (supplyBuilt >= 7 && (supplyUsed == supplyTotal - 4))
+    if (supplyBuilt >= 7 && (supplyUsed >= supplyTotal - 4))
     {
         build(supply, 8, m_builder1);
     }
 
-    if (supplyBuilt >= 8 && (supplyUsed == supplyTotal - 4))
+    if (supplyBuilt >= 8 && (supplyUsed >= supplyTotal - 4))
     {
         build(supply, 9, m_builder2);
     }
@@ -155,12 +153,6 @@ void StarterBot::onFrame()
         marinesBuilt = 0;
         attack();
     }
-
-    // Draw unit health bars, which brood war unfortunately does not do
-    // Tools::DrawUnitHealthBars();
-
-    // Draw some relevent information to the screen to help us debug the bot
-    // drawDebugInformation();
 }
 
 // Send our idle workers to mine minerals so they don't just stand there
@@ -191,7 +183,7 @@ void StarterBot::attack()
     const BWAPI::Unitset &myUnits = BWAPI::Broodwar->self()->getUnits();
     for (auto &unit : myUnits)
     {
-        // Check the unit type, if it is an idle worker, then we want to send it somewhere
+        // Check the unit type, if it is an idle marine or medic, send it to attack
         if ((unit->getType() == marine || unit->getType() == medic) && unit->isIdle())
         {
             auto command = unit->getLastCommand();
@@ -213,14 +205,9 @@ void StarterBot::sendIdleWorkersToRefineries()
         // Find a refinery
         if (unit->getType() == refinery)
         {
-            auto command = m_refinery1->getLastCommand();
-            if (command.getTarget() != unit) // Check if worker is already assigned to refinery
-            {
-                m_refinery1->rightClick(unit);
-                m_refinery2->rightClick(unit);
-                m_refinery3->rightClick(unit);
-            }
-            return;
+            m_refinery1->rightClick(unit);
+            m_refinery2->rightClick(unit);
+            m_refinery3->rightClick(unit);
         }
     }
 }
@@ -235,10 +222,11 @@ void StarterBot::trainAdditionalWorkers()
     {
         // get the unit pointer to my depot
         const BWAPI::Unit myDepot = Tools::GetDepot();
+        int minerals = workerType.mineralPrice();
 
         // if we have a valid depot unit and it's currently not training something, train a worker
         // there is no reason for a bot to ever use the unit queueing system, it just wastes resources
-        if (myDepot && !myDepot->isTraining())
+        if (myDepot && !myDepot->isTraining() && minerals <= mineralTotal)
         {
             myDepot->train(workerType);
         }
@@ -252,7 +240,7 @@ void StarterBot::trainMedic()
     for (auto &unit : myUnits)
     {
         // Check the unit type, if it is an idle barrack, train more marine
-        if (unit->getType() == BWAPI::UnitTypes::Terran_Barracks && unit->isCompleted() && !unit->isTraining())
+        if (unit->getType() == BWAPI::UnitTypes::Terran_Barracks && unit->isCompleted() && !unit->isTraining() && medic.mineralPrice() <= mineralTotal)
         {
             bool train = unit->train(medic);
             if (train)
@@ -270,7 +258,7 @@ void StarterBot::trainMarine()
     for (auto &unit : myUnits)
     {
         // Check the unit type, if it is an idle barrack, train more marine
-        if (unit->getType() == BWAPI::UnitTypes::Terran_Barracks && unit->isCompleted() && !unit->isTraining())
+        if (unit->getType() == BWAPI::UnitTypes::Terran_Barracks && unit->isCompleted() && !unit->isTraining() && marine.mineralPrice() <= mineralTotal)
         {
             bool train = unit->train(marine);
             if (train)
@@ -302,38 +290,18 @@ void StarterBot::scout()
             m_scout->move(pos);
             return;
         }
+
         // if we find an enemy unit, mark the location and return scout to base.
         BWAPI::Unit pos_enemy = m_scout->getClosestUnit();
         // pos_enemy->getType()
         if (BWAPI::Broodwar->self()->isEnemy(pos_enemy->getPlayer()) && pos_enemy->getType().isBuilding())
         {
             enemyBase = pos_enemy->getPosition();
-            BWAPI::Broodwar->printf("Enemy Found");
+            BWAPI::Position enemyPosition(BWAPI::Broodwar->enemy()->getStartLocation());
+            BWAPI::Broodwar->printf("Enemy Found, Enemy Base: %d, %d", enemyBase.x, enemyBase.y);
             enemyFound = true;
             m_scout->move(BWAPI::Position(BWAPI::Broodwar->self()->getStartLocation()));
         }
-    }
-}
-
-// Build more supply if we are going to run out soon
-void StarterBot::buildAdditionalSupply()
-{
-    // Get the amount of supply supply we currently have unused
-    const int unusedSupply = Tools::GetTotalSupply(true) - BWAPI::Broodwar->self()->supplyUsed();
-
-    // If we have a sufficient amount of supply, we don't need to do anything
-    if (unusedSupply >= 2)
-    {
-        return;
-    }
-
-    // Otherwise, we are going to build a supply provider
-    const BWAPI::UnitType supplyProviderType = BWAPI::Broodwar->self()->getRace().getSupplyProvider();
-
-    const bool startedBuilding = Tools::BuildBuilding(supplyProviderType);
-    if (startedBuilding)
-    {
-        BWAPI::Broodwar->printf("Started Building %s", supplyProviderType.getName().c_str());
     }
 }
 
@@ -341,7 +309,7 @@ void StarterBot::buildAdditionalSupply()
 void StarterBot::build(BWAPI::UnitType type, int required, BWAPI::Unit builder)
 {
     const int typeOwned = Tools::CountUnitsOfType(type, BWAPI::Broodwar->self()->getUnits());
-    // If we have a sufficient amount of supply, we don't need to do anything
+    // If we have a sufficient number of buildings, we don't need to do anything
     if (typeOwned >= required)
     {
         return;
@@ -355,7 +323,7 @@ void StarterBot::build(BWAPI::UnitType type, int required, BWAPI::Unit builder)
     const bool startedBuilding = builder->build(type, buildPos);
     if (startedBuilding)
     {
-        BWAPI::Broodwar->printf("Started Building %s", type.getName().c_str());
+        BWAPI::Broodwar->printf("Started Building %s %d", type.getName().c_str(), typeOwned + 1);
     }
 }
 
@@ -465,6 +433,7 @@ void StarterBot::onUnitComplete(BWAPI::Unit unit)
     else if (unit->getType() == refinery && unit->isCompleted())
     {
         refineryBuilt++;
+        sendIdleWorkersToRefineries();
     }
     else if (unit->getType() == academy && unit->isCompleted())
     {

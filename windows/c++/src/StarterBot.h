@@ -37,8 +37,6 @@ class StarterBot
 	int academyBuilt = 0;
 	int engeneeringBuilt = 0;
 
-	int factoryBuilt = 0;
-
 	int medCounter = 0;
 
 	bool enemyFound = false;
