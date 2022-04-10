@@ -52,13 +52,10 @@ public:
 	void freeBuilder();
 	void sendIdleWorkersToRefineries();
 	void trainAdditionalWorkers();
-	void trainAdditionalMarines();
 	void trainMarine();
-	void trainAdditionalMedics();
 	void trainMedic();
 	void buildAdditionalSupply();
 	void scout();
-	void attackWithMarines();
 	void build(BWAPI::UnitType type, int required, BWAPI::Unit builder);
 	void drawDebugInformation();
 
