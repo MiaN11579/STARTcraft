@@ -107,14 +107,14 @@ void StarterBot::onFrame()
         m_engeneering->upgrade(BWAPI::UpgradeTypes::Terran_Infantry_Weapons);
     }
 
-    if (supplyBuilt >= 1)
-    {
-        build(academy, 1, m_builder3);
-    }
-
     if (academyBuilt >= 1)
     {
         m_academy->upgrade(BWAPI::UpgradeTypes::U_238_Shells);
+    }
+
+    if (supplyBuilt >= 1)
+    {
+        build(academy, 1, m_builder3);
     }
 
     if (supplyBuilt >= 2)
@@ -148,7 +148,7 @@ void StarterBot::onFrame()
         build(supply, 9, m_builder2);
     }
 
-    if (marinesBuilt >= 12)
+    if (marinesBuilt >= 14)
     {
         marinesBuilt = 0;
         attack();
@@ -178,24 +178,6 @@ void StarterBot::sendIdleWorkersToMinerals()
     }
 }
 
-void StarterBot::attack()
-{
-    const BWAPI::Unitset &myUnits = BWAPI::Broodwar->self()->getUnits();
-    for (auto &unit : myUnits)
-    {
-        // Check the unit type, if it is an idle marine or medic, send it to attack
-        if ((unit->getType() == marine || unit->getType() == medic) && unit->isIdle())
-        {
-            auto command = unit->getLastCommand();
-            if (command.getTargetPosition() == enemyBase)
-            {
-                continue;
-            }
-            unit->attack(enemyBase);
-        }
-    }
-}
-
 // Send 3 workers to collect gas
 void StarterBot::sendIdleWorkersToRefineries()
 {
@@ -208,6 +190,28 @@ void StarterBot::sendIdleWorkersToRefineries()
             m_refinery1->rightClick(unit);
             m_refinery2->rightClick(unit);
             m_refinery3->rightClick(unit);
+        }
+    }
+}
+
+void StarterBot::attack()
+{
+    const BWAPI::Unitset &myUnits = BWAPI::Broodwar->self()->getUnits();
+    for (auto &unit : myUnits)
+    {
+        // Check the unit type, if it is an idle marine or medic, send it to attack
+        if ((unit->getType() == marine || unit->getType() == medic) && unit->isIdle())
+        {
+            auto command = unit->getLastCommand();
+            BWAPI::Broodwar->printf("Target: %d, %d, Enemy Base: %d, %d", command.getTargetPosition().x, command.getTargetPosition().y, enemyBase.x, enemyBase.y);
+            if (command.getTargetPosition() == enemyBase)
+            {
+                BWAPI::Broodwar->printf("Moving to next enemy");
+                BWAPI::Unit closestEnemy = Tools::GetClosestUnitTo(unit, BWAPI::Broodwar->enemy()->getUnits());
+                unit->attack(closestEnemy);
+                continue;
+            }
+            unit->attack(enemyBase);
         }
     }
 }
@@ -273,34 +277,32 @@ void StarterBot::scout()
 {
     if (enemyFound == false)
     {
+        // if we find an enemy unit, mark the location and return scout to base.
+        BWAPI::Unit pos_enemy = m_scout->getClosestUnit();
+        if (BWAPI::Broodwar->self()->isEnemy(pos_enemy->getPlayer()))
+        {
+            enemyBase = pos_enemy->getPosition();
+            BWAPI::Broodwar->printf("Enemy Found, Enemy Base: %d, %d", enemyBase.x, enemyBase.y);
+            enemyFound = true;
+            m_scout->move(BWAPI::Position(BWAPI::Broodwar->self()->getStartLocation()));
+            return;
+        }
         // code for sending the scout around the map.
         auto &startLocations = BWAPI::Broodwar->getStartLocations();
         for (BWAPI::TilePosition tp : startLocations)
         {
-            if (BWAPI::Broodwar->isExplored(tp))
+            if (!BWAPI::Broodwar->isExplored(tp))
             {
-                continue;
-            }
-            BWAPI::Position pos(tp);
-            auto command = m_scout->getLastCommand();
-            if (command.getTargetPosition() == pos)
-            {
+                BWAPI::Position pos(tp);
+                BWAPI::Broodwar->drawCircleMap(pos, 32, BWAPI::Colors::Red, true);
+                auto command = m_scout->getLastCommand();
+                if (command.getTargetPosition() == pos)
+                {
+                    return;
+                }
+                m_scout->move(pos);
                 return;
             }
-            m_scout->move(pos);
-            return;
-        }
-
-        // if we find an enemy unit, mark the location and return scout to base.
-        BWAPI::Unit pos_enemy = m_scout->getClosestUnit();
-        // pos_enemy->getType()
-        if (BWAPI::Broodwar->self()->isEnemy(pos_enemy->getPlayer()) && pos_enemy->getType().isBuilding())
-        {
-            enemyBase = pos_enemy->getPosition();
-            BWAPI::Position enemyPosition(BWAPI::Broodwar->enemy()->getStartLocation());
-            BWAPI::Broodwar->printf("Enemy Found, Enemy Base: %d, %d", enemyBase.x, enemyBase.y);
-            enemyFound = true;
-            m_scout->move(BWAPI::Position(BWAPI::Broodwar->self()->getStartLocation()));
         }
     }
 }

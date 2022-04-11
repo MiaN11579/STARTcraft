@@ -28,6 +28,13 @@ class StarterBot
 	const BWAPI::UnitType academy = BWAPI::UnitTypes::Terran_Academy;
 	const BWAPI::UnitType engeneering = BWAPI::UnitTypes::Terran_Engineering_Bay;
 
+	int mineralCash = BWAPI::Broodwar->self()->minerals();
+	int mineralTotal = BWAPI::Broodwar->self()->gatheredMinerals();
+	int gasCash = BWAPI::Broodwar->self()->gas();
+	int gasTotal = BWAPI::Broodwar->self()->gatheredGas();
+	int supplyUsed = BWAPI::Broodwar->self()->supplyUsed();
+	int supplyTotal = BWAPI::Broodwar->self()->supplyTotal();
+
 	int workersBuilt = 0;
 	int marinesBuilt = 0;
 	int medicsBuilt = 0;
@@ -36,6 +43,8 @@ class StarterBot
 	int barracksBuilt = 0;
 	int academyBuilt = 0;
 	int engeneeringBuilt = 0;
+
+	int factoryBuilt = 0;
 
 	int medCounter = 0;
 
@@ -49,7 +58,6 @@ public:
 	// helper functions to get you started with bot programming and learn the API
 	void sendIdleWorkersToMinerals();
 	void attack();
-	void freeBuilder();
 	void sendIdleWorkersToRefineries();
 	void trainAdditionalWorkers();
 	void trainMarine();
