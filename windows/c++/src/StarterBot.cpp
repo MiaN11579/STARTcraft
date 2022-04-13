@@ -74,7 +74,7 @@ void StarterBot::onFrame()
     {
         build(supply, 2, m_builder4);
         build(barrack, 2, m_builder3);
-        if (medCounter == 3)
+        if (medCounter >= 3)
         {
             trainMedic();
             medCounter = 0;
@@ -202,16 +202,16 @@ void StarterBot::attack()
         // Check the unit type, if it is an idle marine or medic, send it to attack
         if ((unit->getType() == marine || unit->getType() == medic) && unit->isIdle())
         {
-            auto command = unit->getLastCommand();
-            BWAPI::Broodwar->printf("Target: %d, %d, Enemy Base: %d, %d", command.getTargetPosition().x, command.getTargetPosition().y, enemyBase.x, enemyBase.y);
-            if (command.getTargetPosition() == enemyBase)
-            {
-                BWAPI::Broodwar->printf("Moving to next enemy");
-                BWAPI::Unit closestEnemy = Tools::GetClosestUnitTo(unit, BWAPI::Broodwar->enemy()->getUnits());
-                unit->attack(closestEnemy);
-                continue;
-            }
             unit->attack(enemyBase);
+            // auto command = unit->getLastCommand();
+            // BWAPI::Broodwar->printf("Target: %d, %d, Enemy Base: %d, %d", command.getTargetPosition().x, command.getTargetPosition().y, enemyBase.x, enemyBase.y);
+            // if (unit->getPosition() == enemyBase)
+            // {
+            //     BWAPI::Broodwar->printf("Moving to next enemy");
+            //     BWAPI::Unit closestEnemy = Tools::GetClosestUnitTo(unit, BWAPI::Broodwar->enemy()->getUnits());
+            //     unit->attack(closestEnemy);
+            //     continue;
+            // }
         }
     }
 }
@@ -281,28 +281,44 @@ void StarterBot::scout()
         BWAPI::Unit pos_enemy = m_scout->getClosestUnit();
         if (BWAPI::Broodwar->self()->isEnemy(pos_enemy->getPlayer()))
         {
-            enemyBase = pos_enemy->getPosition();
+            enemyBase = m_scout->getLastCommand().getTargetPosition();
             BWAPI::Broodwar->printf("Enemy Found, Enemy Base: %d, %d", enemyBase.x, enemyBase.y);
             enemyFound = true;
-            m_scout->move(BWAPI::Position(BWAPI::Broodwar->self()->getStartLocation()));
+            m_scout->move(playerBase);
             return;
         }
         // code for sending the scout around the map.
         auto &startLocations = BWAPI::Broodwar->getStartLocations();
-        for (BWAPI::TilePosition tp : startLocations)
+        for (BWAPI::TilePosition tp : startLocations) // for each start location
         {
-            if (!BWAPI::Broodwar->isExplored(tp))
+            BWAPI::TilePosition tp1 = BWAPI::TilePosition(tp.x + 5, tp.y + 5);
+            BWAPI::TilePosition tp2 = BWAPI::TilePosition(tp.x - 5, tp.y + 5);
+            BWAPI::TilePosition tp3 = BWAPI::TilePosition(tp.x + 5, tp.y - 5);
+            BWAPI::TilePosition tp4 = BWAPI::TilePosition(tp.x - 5, tp.y - 5);
+            std::deque<BWAPI::TilePosition> surroundings = {tp, tp1, tp2, tp3, tp4}; // add all the surrounding tiles to the deque
+            for (BWAPI::TilePosition tile : surroundings)
             {
-                BWAPI::Position pos(tp);
-                BWAPI::Broodwar->drawCircleMap(pos, 32, BWAPI::Colors::Red, true);
-                auto command = m_scout->getLastCommand();
-                if (command.getTargetPosition() == pos)
+                if (!BWAPI::Broodwar->isExplored(tile))
                 {
+                    BWAPI::Position pos(tile);
+                    BWAPI::Broodwar->drawCircleMap(pos, 32, BWAPI::Colors::Red, true);
+                    auto command = m_scout->getLastCommand();
+                    if (command.getTargetPosition() == pos)
+                    {
+                        return;
+                    }
+                    m_scout->move(pos);
                     return;
                 }
-                m_scout->move(pos);
-                return;
             }
+        }
+    } else if (chokepoint.x == 0) // if chokepoint has not been set
+    {
+        int distance = m_scout->getDistance(playerBase);
+        if (distance <= 600)
+        {
+            chokepoint = m_scout->getPosition(); // set chokepoint to the position of the scout
+            BWAPI::Broodwar->printf("Chokepoint x: %d, Chokepoint y: %d", chokepoint.x, chokepoint.y);
         }
     }
 }
@@ -416,11 +432,13 @@ void StarterBot::onUnitComplete(BWAPI::Unit unit)
     {
         marinesBuilt++;
         medCounter++;
+        unit->move(chokepoint);
         BWAPI::Broodwar->printf("marines: %d\n", marinesBuilt);
     }
     else if (unit->getType() == medic && unit->isCompleted())
     {
         medicsBuilt++;
+        unit->move(chokepoint);
         BWAPI::Broodwar->printf("medics: %d\n", medicsBuilt);
     }
     else if (unit->getType() == barrack && unit->isCompleted())

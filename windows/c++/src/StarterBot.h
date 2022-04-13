@@ -43,13 +43,13 @@ class StarterBot
 	int barracksBuilt = 0;
 	int academyBuilt = 0;
 	int engeneeringBuilt = 0;
-
 	int factoryBuilt = 0;
 
 	int medCounter = 0;
-
 	bool enemyFound = false;
 	BWAPI::Position enemyBase;
+	BWAPI::Position playerBase = BWAPI::Position(BWAPI::Broodwar->self()->getStartLocation());
+	BWAPI::Position chokepoint = BWAPI::Position(0,0);
 
 public:
 
