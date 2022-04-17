@@ -12,7 +12,7 @@ StarterBot::StarterBot()
 void StarterBot::onStart()
 {
     // Set our BWAPI options here
-    BWAPI::Broodwar->setLocalSpeed(5);
+    BWAPI::Broodwar->setLocalSpeed(0);
     BWAPI::Broodwar->setFrameSkip(0);
 
     // Enable the flag that tells BWAPI top let users enter input while bot plays
@@ -45,20 +45,11 @@ void StarterBot::onFrame()
     sendIdleWorkersToMinerals();
     // BWAPI::Broodwar->printf("supplyUsed is %d\n", supplyUsed);
     // BWAPI::Broodwar->printf("supplyTotal is %d\n", supplyTotal);
+
     //  once we have enough workers to start with, send a a worker to scout.
     if (supplyUsed >= 8 && m_scout && (enemyFound == false || chokepoint == playerBase))
     {
         scout();
-    }
-    // if the refinery has been built, send the designated workers to collect gas.
-    // if (refineryBuilt == 1 && m_refinery1 && m_refinery2 && m_refinery3) { sendIdleWorkersToRefineries(); }
-    // Switched to using this becuase the refinery woirkers refused to harvest gas for some reason.
-    if (refineryBuilt == 1 && m_refinery1 && m_refinery2 && m_refinery3 && refineryStart == false)
-    {
-        m_refinery1->rightClick(m_refinery);
-        m_refinery2->rightClick(m_refinery);
-        m_refinery3->rightClick(m_refinery);
-        refineryStart = true;
     }
 
     // start of the build order.
@@ -69,49 +60,43 @@ void StarterBot::onFrame()
         BWAPI::Broodwar->printf("worker 5 started");
     }
 
-    if (supplyUsed >= 5 && worker6 == false && myDepot && !myDepot->isTraining() && workerPrice <= mineralCash)
+    else if (supplyUsed >= 5 && worker6 == false && myDepot && !myDepot->isTraining() && workerPrice <= mineralCash)
     {
         myDepot->train(workerType);
         worker6 = true;
         BWAPI::Broodwar->printf("worker 6 started");
     }
 
-    if (supplyUsed >= 6 && worker7 == false && myDepot && !myDepot->isTraining() && workerPrice <= mineralCash)
+    else if (supplyUsed >= 6 && worker7 == false && myDepot && !myDepot->isTraining() && workerPrice <= mineralCash)
     {
         myDepot->train(workerType);
         worker7 = true;
         BWAPI::Broodwar->printf("worker 7 started");
     }
 
-    if (supplyUsed >= 7 && worker8 == false && myDepot && !myDepot->isTraining() && workerPrice <= mineralCash)
+    else if (supplyUsed >= 7 && worker8 == false && myDepot && !myDepot->isTraining() && workerPrice <= mineralCash)
     {
         myDepot->train(workerType);
         worker8 = true;
         BWAPI::Broodwar->printf("worker 8 started");
     }
 
-    if (supplyUsed >= 8 && worker9 == false && myDepot && !myDepot->isTraining() && workerPrice <= mineralCash)
+    else if (supplyUsed >= 8 && worker9 == false && myDepot && !myDepot->isTraining() && workerPrice <= mineralCash)
     {
         myDepot->train(workerType);
         worker9 = true;
         BWAPI::Broodwar->printf("worker 9 started");
     }
 
-    if (supplyUsed >= 9)
+    else if (supplyUsed >= 9 && supplyPrice <= mineralCash && m_builder1 && worker10 == false && myDepot && !myDepot->isTraining() && workerPrice <= mineralCash)
     {
-        if (supplyPrice <= mineralCash && m_builder1)
-        {
-            build(supply, 1, m_builder1);
-        }
-        if (worker10 == false && myDepot && !myDepot->isTraining() && workerPrice <= mineralCash)
-        {
-            myDepot->train(workerType);
-            worker10 = true;
-            BWAPI::Broodwar->printf("worker 10 started");
-        }
+        build(supply, 1, m_builder1);
+        myDepot->train(workerType);
+        worker10 = true;
+        BWAPI::Broodwar->printf("worker 10 started");
     }
 
-    if (supplyUsed >= 10 && worker11 == false && myDepot && !myDepot->isTraining() && workerPrice <= mineralCash && supplyBuilt == 1)
+    else if (supplyUsed >= 10 && worker11 == false && myDepot && !myDepot->isTraining() && workerPrice <= mineralCash && supplyBuilt == 1)
     {
         myDepot->train(workerType);
         worker11 = true;
@@ -179,8 +164,13 @@ void StarterBot::onFrame()
     {
         build(barrack, 3, m_builder3);
     }
-
     // End of the build order.
+
+    // if the refinery has been built, send the designated workers to collect gas.
+    if (refineryBuilt == 1 && m_refinery1 && m_refinery2 && m_refinery3 && refineryStart == false)
+    {
+        sendIdleWorkersToRefineries();
+    }
 
     if (barracksBuilt >= 1)
     {
@@ -275,17 +265,10 @@ void StarterBot::sendIdleWorkersToMinerals()
 // Send 3 workers to collect gas
 void StarterBot::sendIdleWorkersToRefineries()
 {
-    const BWAPI::Unitset &myUnits = BWAPI::Broodwar->self()->getUnits();
-    for (auto &unit : myUnits)
-    {
-        // Find a refinery
-        if (unit->getType() == refinery)
-        {
-            m_refinery1->rightClick(unit);
-            m_refinery2->rightClick(unit);
-            m_refinery3->rightClick(unit);
-        }
-    }
+    m_refinery1->rightClick(m_refinery);
+    m_refinery2->rightClick(m_refinery);
+    m_refinery3->rightClick(m_refinery);
+    refineryStart = true;
 }
 
 BWAPI::Unit StarterBot::getenemyInRegion()
@@ -327,12 +310,12 @@ void StarterBot::attack()
                     BWAPI::Broodwar->printf("Protect base!");
                     unit->attack(enemyInRegion); // attack the enemy in region
                 }
-                else if (medCounter >= 15) // if base is fine
+                else if (medCounter >= 20) // if base is fine
                 {
                     unit->attack(enemyBase); // attack the enemy base
                 }
             }
-            else if (unit->getDistance(playerBase) > 1000 && unit->isIdle() && unit->getType() != medic) // if unit is outside player base and not doing anything
+            else if (unit->getDistance(playerBase) > 1000 && unit->isIdle()) // if unit is outside player base and not doing anything
             {
                 if (enemyBuildings.empty()) // if there are enemy units
                 {
@@ -352,10 +335,10 @@ void StarterBot::attack()
             }
         }
     }
-    if (medCounter >= 15 && enemyInRegion != nullptr) // reset count and attack enemy if base is not under attack
+    if (medCounter >= 20 && enemyInRegion == nullptr) // reset count and attack enemy if base is not under attack
     {
         BWAPI::Broodwar->printf("Launch attack!");
-        if (attackWave < 2) 
+        if (attackWave < 2)
         {
             attackWave++;
         }
