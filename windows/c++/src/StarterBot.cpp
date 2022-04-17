@@ -1,6 +1,8 @@
 #include "StarterBot.h"
 #include "Tools.h"
 #include "MapTools.h"
+#include <stdlib.h> /* srand, rand */
+#include <time.h>   /* time */
 
 StarterBot::StarterBot()
 {
@@ -10,7 +12,7 @@ StarterBot::StarterBot()
 void StarterBot::onStart()
 {
     // Set our BWAPI options here
-    BWAPI::Broodwar->setLocalSpeed(10);
+    BWAPI::Broodwar->setLocalSpeed(5);
     BWAPI::Broodwar->setFrameSkip(0);
 
     // Enable the flag that tells BWAPI top let users enter input while bot plays
@@ -35,124 +37,216 @@ void StarterBot::onFrame()
     mineralTotal = BWAPI::Broodwar->self()->gatheredMinerals();
     gasCash = BWAPI::Broodwar->self()->gas();
     gasTotal = BWAPI::Broodwar->self()->gatheredGas();
-    supplyUsed = BWAPI::Broodwar->self()->supplyUsed();
-    supplyTotal = BWAPI::Broodwar->self()->supplyTotal();
+    supplyUsed = BWAPI::Broodwar->self()->supplyUsed() / 2;
+    supplyTotal = BWAPI::Broodwar->self()->supplyTotal() / 2;
     // Update our MapTools information
     m_mapTools.onFrame();
-
-    // keep building workers untill we reach 25
-    if (workersBuilt < 25)
-    {
-        // i put the if loop in because the function kept making workers after it reached 25.
-        trainAdditionalWorkers();
-    }
-
-    // continously send any idle workers to mine minerals
+    const BWAPI::Unit myDepot = Tools::GetDepot();
     sendIdleWorkersToMinerals();
-
-    if (workersBuilt >= 5)
+    // BWAPI::Broodwar->printf("supplyUsed is %d\n", supplyUsed);
+    // BWAPI::Broodwar->printf("supplyTotal is %d\n", supplyTotal);
+    //  once we have enough workers to start with, send a a worker to scout.
+    if (supplyUsed >= 8 && m_scout && (enemyFound == false || chokepoint == playerBase))
     {
         scout();
     }
-
-    if (workersBuilt >= 8)
+    // if the refinery has been built, send the designated workers to collect gas.
+    // if (refineryBuilt == 1 && m_refinery1 && m_refinery2 && m_refinery3) { sendIdleWorkersToRefineries(); }
+    // Switched to using this becuase the refinery woirkers refused to harvest gas for some reason.
+    if (refineryBuilt == 1 && m_refinery1 && m_refinery2 && m_refinery3 && refineryStart == false)
     {
-        build(supply, 1, m_builder1);
+        m_refinery1->rightClick(m_refinery);
+        m_refinery2->rightClick(m_refinery);
+        m_refinery3->rightClick(m_refinery);
+        refineryStart = true;
     }
 
-    if (workersBuilt >= 10)
+    // start of the build order.
+    if (supplyUsed >= 4 && worker5 == false && myDepot && !myDepot->isTraining() && workerPrice <= mineralCash)
     {
-        build(barrack, 1, m_builder2);
+        myDepot->train(workerType);
+        worker5 = true;
+        BWAPI::Broodwar->printf("worker 5 started");
     }
 
-    if (workersBuilt >= 12)
+    if (supplyUsed >= 5 && worker6 == false && myDepot && !myDepot->isTraining() && workerPrice <= mineralCash)
     {
-        build(refinery, 1, m_refinery2);
+        myDepot->train(workerType);
+        worker6 = true;
+        BWAPI::Broodwar->printf("worker 6 started");
     }
+
+    if (supplyUsed >= 6 && worker7 == false && myDepot && !myDepot->isTraining() && workerPrice <= mineralCash)
+    {
+        myDepot->train(workerType);
+        worker7 = true;
+        BWAPI::Broodwar->printf("worker 7 started");
+    }
+
+    if (supplyUsed >= 7 && worker8 == false && myDepot && !myDepot->isTraining() && workerPrice <= mineralCash)
+    {
+        myDepot->train(workerType);
+        worker8 = true;
+        BWAPI::Broodwar->printf("worker 8 started");
+    }
+
+    if (supplyUsed >= 8 && worker9 == false && myDepot && !myDepot->isTraining() && workerPrice <= mineralCash)
+    {
+        myDepot->train(workerType);
+        worker9 = true;
+        BWAPI::Broodwar->printf("worker 9 started");
+    }
+
+    if (supplyUsed >= 9)
+    {
+        if (supplyPrice <= mineralCash && m_builder1)
+        {
+            build(supply, 1, m_builder1);
+        }
+        if (worker10 == false && myDepot && !myDepot->isTraining() && workerPrice <= mineralCash)
+        {
+            myDepot->train(workerType);
+            worker10 = true;
+            BWAPI::Broodwar->printf("worker 10 started");
+        }
+    }
+
+    if (supplyUsed >= 10 && worker11 == false && myDepot && !myDepot->isTraining() && workerPrice <= mineralCash && supplyBuilt == 1)
+    {
+        myDepot->train(workerType);
+        worker11 = true;
+        BWAPI::Broodwar->printf("worker 11 started");
+    }
+
+    if (supplyUsed >= 11)
+    {
+        if (barracksPrice <= mineralCash && m_builder2)
+        {
+            build(barrack, 1, m_builder2);
+        }
+        if (worker12 == false && myDepot && !myDepot->isTraining() && workerPrice <= mineralCash)
+        {
+            myDepot->train(workerType);
+            worker12 = true;
+            BWAPI::Broodwar->printf("worker 12 started");
+        }
+    }
+
+    if (supplyUsed >= 12 && worker13 == false && myDepot && !myDepot->isTraining() && workerPrice <= mineralCash)
+    {
+        myDepot->train(workerType);
+        worker13 = true;
+        BWAPI::Broodwar->printf("worker 13 started");
+    }
+
+    if (supplyUsed >= 13 && barracksPrice <= mineralCash && m_builder3)
+    {
+        build(barrack, 2, m_builder3);
+    }
+
+    if (supplyUsed >= 15 && supplyPrice <= mineralCash && m_builder4)
+    {
+        build(supply, 2, m_builder4);
+    }
+
+    if (supplyUsed >= 16 && refineryPrice <= mineralCash && m_refinery1)
+    {
+        build(refinery, 1, m_refinery1);
+    }
+
+    if (supplyUsed >= 17 && supplyPrice <= mineralCash && m_builder1)
+    {
+        build(supply, 3, m_builder1);
+    }
+
+    if (supplyUsed >= 20 && academyMinPrice <= mineralCash && academyGasPrice <= gasCash && m_builder2)
+    {
+        build(academy, 1, m_builder2);
+    }
+
+    if (supplyUsed >= 23 && supplyPrice <= mineralCash && m_builder3)
+    {
+        build(supply, 4, m_builder3);
+    }
+
+    if (supplyUsed >= 25 && supplyPrice <= mineralCash && m_builder1 && m_builder2)
+    {
+        build(supply, 5, m_builder1);
+        build(engeneering, 1, m_builder2);
+    }
+
+    if (supplyUsed >= 28 && supplyPrice <= mineralCash && m_builder3)
+    {
+        build(barrack, 3, m_builder3);
+    }
+
+    // End of the build order.
 
     if (barracksBuilt >= 1)
     {
-        build(supply, 2, m_builder4);
-        build(barrack, 2, m_builder3);
-        if (medCounter >= 3)
+        if (academyBuilt >= 1 && medicsBuilt <= (marinesBuilt / 4))
         {
-            trainMedic();
-            medCounter = 0;
+            train(medic);
+        }
+        if (attackWave < 2)
+        {
+            train(marine);
         }
         else
         {
-            trainMarine();
+            train(firebat);
         }
-    }
-
-    if (barracksBuilt >= 2)
-    {
-        build(engeneering, 1, m_builder1);
-        build(barrack, 3, m_builder2);
-    }
-
-    if (barracksBuilt >= 3)
-    {
-        build(barrack, 4, m_builder1);
-    }
-
-    if (barracksBuilt >= 4)
-    {
-        build(barrack, 5, m_builder2);
+        attack();
     }
 
     if (engeneeringBuilt >= 1)
     {
-        build(barrack, 3, m_builder4);
         m_engeneering->upgrade(BWAPI::UpgradeTypes::Terran_Infantry_Weapons);
     }
 
-    if (academyBuilt >= 1)
+    if (academyBuilt >= 1 && barracksBuilt >= 3)
     {
         m_academy->upgrade(BWAPI::UpgradeTypes::U_238_Shells);
-    }
-
-    if (supplyBuilt >= 1)
-    {
-        build(academy, 1, m_builder3);
-    }
-
-    if (supplyBuilt >= 2)
-    {
-        build(supply, 4, m_builder1);
-    }
-
-    if (supplyBuilt >= 4 && (supplyUsed >= supplyTotal - 4))
-    {
-        build(supply, 5, m_builder2);
-    }
-
-    if (supplyBuilt >= 5 && (supplyUsed >= supplyTotal - 4))
-    {
-        build(supply, 6, m_builder3);
         m_engeneering->upgrade(BWAPI::UpgradeTypes::Terran_Infantry_Armor);
     }
 
-    if (supplyBuilt >= 6 && (supplyUsed >= supplyTotal - 4))
+    /*
+    // after the first barracks is built, but before the academy is built, just keep
+    // pumping out marines form the barracks.
+    if (barracksBuilt >= 1 && m_barracks1 && academyBuilt == 0 && !m_barracks1->isTraining() && supplyUsed < supplyTotal && marinePrice <= mineralCash)
     {
-        build(supply, 7, m_builder4);
+        m_barracks1->train(marine);
+        if (barracksBuilt == 2 && m_barracks2 && !m_barracks2->isTraining() && supplyUsed < supplyTotal && marinePrice <= mineralCash)
+        {
+            m_barracks2->train(marine);
+        }
     }
-
-    if (supplyBuilt >= 7 && (supplyUsed >= supplyTotal - 4))
+    // otherwise, we want to build marines and medics, with a 4/1 ratio
+    else if (academyBuilt == 1 && supplyUsed <= supplyTotal)
     {
-        build(supply, 8, m_builder1);
-    }
-
-    if (supplyBuilt >= 8 && (supplyUsed >= supplyTotal - 4))
-    {
-        build(supply, 9, m_builder2);
-    }
-
-    if (marinesBuilt >= 14)
-    {
-        marinesBuilt = 0;
-        attack();
-    }
+        if (medicsBuilt <= (marinesBuilt / 4) && medicMinPrice <= mineralCash && medicGasPrice <= gasCash)
+        {
+            if (!m_barracks1->isTraining())
+            {
+                m_barracks1->train(medic);
+            }
+            else if (!m_barracks2->isTraining())
+            {
+                m_barracks2->train(medic);
+            }
+        }
+        else if (marinePrice <= mineralCash)
+        {
+            if (!m_barracks1->isTraining())
+            {
+                m_barracks1->train(marine);
+            }
+            else if (!m_barracks2->isTraining())
+            {
+                m_barracks2->train(marine);
+            }
+        }
+    }*/
 }
 
 // Send our idle workers to mine minerals so they don't just stand there
@@ -194,80 +288,94 @@ void StarterBot::sendIdleWorkersToRefineries()
     }
 }
 
+BWAPI::Unit StarterBot::getenemyInRegion()
+{
+    for (auto &unit : BWAPI::Broodwar->enemy()->getUnits())
+    {
+        // if it's an overlord, don't worry about it for defense, we don't care what they see
+        if (unit->getType() == BWAPI::UnitTypes::Zerg_Overlord)
+        {
+            continue;
+        }
+
+        if (unit->getDistance(playerBase) < 800) // if the unit is close to our base
+        {
+            BWAPI::Broodwar->printf("Enemy in region");
+            return unit;
+        }
+    }
+    return nullptr;
+}
+
 void StarterBot::attack()
 {
+    BWAPI::Unit enemyInRegion = getenemyInRegion(); // check if there is an enemy in our region
+
+    // initialize random seed
+    srand((unsigned int)time(0));
+
     const BWAPI::Unitset &myUnits = BWAPI::Broodwar->self()->getUnits();
     for (auto &unit : myUnits)
     {
         // Check the unit type, if it is an idle marine or medic, send it to attack
-        if ((unit->getType() == marine || unit->getType() == medic) && unit->isIdle())
+        if ((unit->getType() == marine || unit->getType() == medic || unit->getType() == firebat)) // if this is a combat unit
         {
-            unit->attack(enemyBase);
-            // auto command = unit->getLastCommand();
-            // BWAPI::Broodwar->printf("Target: %d, %d, Enemy Base: %d, %d", command.getTargetPosition().x, command.getTargetPosition().y, enemyBase.x, enemyBase.y);
-            // if (unit->getPosition() == enemyBase)
-            // {
-            //     BWAPI::Broodwar->printf("Moving to next enemy");
-            //     BWAPI::Unit closestEnemy = Tools::GetClosestUnitTo(unit, BWAPI::Broodwar->enemy()->getUnits());
-            //     unit->attack(closestEnemy);
-            //     continue;
-            // }
-        }
-    }
-}
-
-// Train more workers so we can gather more income
-void StarterBot::trainAdditionalWorkers()
-{
-    const BWAPI::UnitType workerType = BWAPI::Broodwar->self()->getRace().getWorker();
-    const int workersWanted = 24;
-    const int workersOwned = Tools::CountUnitsOfType(workerType, BWAPI::Broodwar->self()->getUnits());
-    if (workersOwned <= workersWanted)
-    {
-        // get the unit pointer to my depot
-        const BWAPI::Unit myDepot = Tools::GetDepot();
-        int minerals = workerType.mineralPrice();
-
-        // if we have a valid depot unit and it's currently not training something, train a worker
-        // there is no reason for a bot to ever use the unit queueing system, it just wastes resources
-        if (myDepot && !myDepot->isTraining() && minerals <= mineralTotal)
-        {
-            myDepot->train(workerType);
-        }
-    }
-}
-
-// Train more medics in barracks
-void StarterBot::trainMedic()
-{
-    const BWAPI::Unitset &myUnits = BWAPI::Broodwar->self()->getUnits();
-    for (auto &unit : myUnits)
-    {
-        // Check the unit type, if it is an idle barrack, train more marine
-        if (unit->getType() == BWAPI::UnitTypes::Terran_Barracks && unit->isCompleted() && !unit->isTraining() && medic.mineralPrice() <= mineralTotal)
-        {
-            bool train = unit->train(medic);
-            if (train)
+            if (unit->getDistance(playerBase) < 800) // if unit is at player base
             {
-                BWAPI::Broodwar->printf("Started training %s", medic.getName().c_str());
+                if (enemyInRegion != nullptr) // if base is under attack
+                {
+                    BWAPI::Broodwar->printf("Protect base!");
+                    unit->attack(enemyInRegion); // attack the enemy in region
+                }
+                else if (medCounter >= 15) // if base is fine
+                {
+                    unit->attack(enemyBase); // attack the enemy base
+                }
+            }
+            else if (unit->getDistance(playerBase) > 1000 && unit->isIdle() && unit->getType() != medic) // if unit is outside player base and not doing anything
+            {
+                if (enemyBuildings.empty()) // if there are enemy units
+                {
+                    BWAPI::Broodwar->printf("Attack next enemy!");
+                    unit->attack(enemyBuildings[0]);
+                }
+                else // if no enemy buildings in sight, search for one
+                {
+                    // generate random coordinates within 1000 radius of the enemy base
+                    int x = rand() % 2000 - 1000;
+                    int y = rand() % 2000 - 1000;
+                    BWAPI::Position pos = BWAPI::Position(enemyBase.x + x, enemyBase.y + y).makeValid();
+                    BWAPI::Broodwar->printf("%d, %d, Finding next enemy at %d, %d", x, y, pos.x, pos.y);
+                    // scout around and attack anything on its way
+                    unit->attack(pos);
+                }
             }
         }
     }
+    if (medCounter >= 15 && enemyInRegion != nullptr) // reset count and attack enemy if base is not under attack
+    {
+        BWAPI::Broodwar->printf("Launch attack!");
+        if (attackWave < 2) 
+        {
+            attackWave++;
+        }
+        medCounter = 0;
+    }
 }
 
-// Train more marines in barracks
-void StarterBot::trainMarine()
+// Train combat units in barracks
+void StarterBot::train(BWAPI::UnitType type)
 {
     const BWAPI::Unitset &myUnits = BWAPI::Broodwar->self()->getUnits();
     for (auto &unit : myUnits)
     {
         // Check the unit type, if it is an idle barrack, train more marine
-        if (unit->getType() == BWAPI::UnitTypes::Terran_Barracks && unit->isCompleted() && !unit->isTraining() && marine.mineralPrice() <= mineralTotal)
+        if (unit->getType() == BWAPI::UnitTypes::Terran_Barracks && !unit->isTraining() && type.mineralPrice() <= mineralTotal)
         {
-            bool train = unit->train(marine);
+            bool train = unit->train(type);
             if (train)
             {
-                BWAPI::Broodwar->printf("Started training %s", marine.getName().c_str());
+                // BWAPI::Broodwar->printf("Started training %s", type.getName().c_str());
             }
         }
     }
@@ -312,8 +420,10 @@ void StarterBot::scout()
                 }
             }
         }
-    } else if (chokepoint.x == 0) // if chokepoint has not been set
+    }
+    else if (chokepoint == playerBase) // if chokepoint has not been set
     {
+        BWAPI::Broodwar->drawCircleMap(enemyBase, 32, BWAPI::Colors::Red, true);
         int distance = m_scout->getDistance(playerBase);
         if (distance <= 600)
         {
@@ -355,6 +465,26 @@ void StarterBot::drawDebugInformation()
 // Called whenever a unit is destroyed, with a pointer to the unit
 void StarterBot::onUnitDestroy(BWAPI::Unit unit)
 {
+    if (unit->getType() == marine && unit->isCompleted())
+    {
+        marinesBuilt--;
+    }
+    else if (unit->getType() == medic && unit->isCompleted())
+    {
+        medicsBuilt--;
+    }
+    if (unit->getPlayer() == BWAPI::Broodwar->enemy() && unit->getType().isBuilding())
+    {
+        for (unsigned int i = 0; i < enemyBuildings.size(); i++)
+        {
+            if (enemyBuildings[i] == unit)
+            {
+                BWAPI::Broodwar->printf("Enemy building removed");
+                enemyBuildings.erase(enemyBuildings.begin() + i);
+                break;
+            }
+        }
+    }
 }
 
 // Called whenever a unit is morphed, with a pointer to the unit
@@ -383,67 +513,83 @@ void StarterBot::onUnitCreate(BWAPI::Unit unit)
 void StarterBot::onUnitComplete(BWAPI::Unit unit)
 {
     // if the unit is of the correct type, and it actually has been constructed, add to it's count.
-    if (unit->getType() == workerType && unit->isCompleted())
+    if (unit->getType() == workerType)
     {
         workersBuilt++;
         BWAPI::Broodwar->printf("worker: %d\n", workersBuilt);
+
         if (workersBuilt == 5)
-        {
-            m_scout = unit;
-            BWAPI::Broodwar->printf("scout role assigned");
-        }
-        if (workersBuilt == 6)
         {
             m_builder1 = unit;
             BWAPI::Broodwar->printf("builder1 role assigned");
         }
-        if (workersBuilt == 7)
+        else if (workersBuilt == 6)
         {
             m_builder2 = unit;
             BWAPI::Broodwar->printf("builder2 role assigned");
         }
-        if (workersBuilt == 8)
+        else if (workersBuilt == 7)
         {
             m_builder3 = unit;
             BWAPI::Broodwar->printf("builder3 role assigned");
         }
-        if (workersBuilt == 9)
+        else if (workersBuilt == 8)
+        {
+            m_scout = unit;
+            BWAPI::Broodwar->printf("scout role assigned");
+        }
+        else if (workersBuilt == 9)
         {
             m_builder4 = unit;
             BWAPI::Broodwar->printf("builder4 role assigned");
         }
-        if (workersBuilt == 10)
+        else if (workersBuilt == 10)
         {
             m_refinery1 = unit;
             BWAPI::Broodwar->printf("refinery1 role assigned");
         }
-        if (workersBuilt == 11)
+        else if (workersBuilt == 11)
         {
             m_refinery2 = unit;
             BWAPI::Broodwar->printf("refinery2 role assigned");
         }
-        if (workersBuilt == 12)
+        else if (workersBuilt == 12)
         {
             m_refinery3 = unit;
             BWAPI::Broodwar->printf("refinery3 role assigned");
         }
     }
-    else if (unit->getType() == marine && unit->isCompleted())
+    else if (unit->getType() == marine)
     {
         marinesBuilt++;
         medCounter++;
-        unit->move(chokepoint);
+        unit->attack(chokepoint);
         BWAPI::Broodwar->printf("marines: %d\n", marinesBuilt);
     }
-    else if (unit->getType() == medic && unit->isCompleted())
+    else if (unit->getType() == medic)
     {
         medicsBuilt++;
-        unit->move(chokepoint);
+        unit->attack(chokepoint);
         BWAPI::Broodwar->printf("medics: %d\n", medicsBuilt);
     }
-    else if (unit->getType() == barrack && unit->isCompleted())
+    else if (unit->getType() == firebat)
+    {
+        firebatsBuilt++;
+        medCounter++;
+        unit->attack(chokepoint);
+        BWAPI::Broodwar->printf("firebat: %d\n", firebatsBuilt);
+    }
+    else if (unit->getType() == barrack)
     {
         barracksBuilt++;
+        if (barracksBuilt == 1)
+        {
+            m_barracks1 = unit;
+        }
+        else if (barracksBuilt == 2)
+        {
+            m_barracks2 = unit;
+        }
         BWAPI::Broodwar->printf("barrack: %d\n", barracksBuilt);
     }
     else if (unit->getType() == supply && unit->isCompleted())
@@ -453,6 +599,7 @@ void StarterBot::onUnitComplete(BWAPI::Unit unit)
     else if (unit->getType() == refinery && unit->isCompleted())
     {
         refineryBuilt++;
+        m_refinery = unit;
         sendIdleWorkersToRefineries();
     }
     else if (unit->getType() == academy && unit->isCompleted())
@@ -471,6 +618,18 @@ void StarterBot::onUnitComplete(BWAPI::Unit unit)
 // This is usually triggered when units appear from fog of war and become visible
 void StarterBot::onUnitShow(BWAPI::Unit unit)
 {
+    if (unit->getPlayer() == BWAPI::Broodwar->enemy() && unit->getType().isBuilding())
+    {
+        for (unsigned int i = 0; i < enemyBuildings.size(); i++)
+        {
+            if (enemyBuildings[i] == unit)
+            {
+                return;
+            }
+        }
+        BWAPI::Broodwar->printf("Enemy building added");
+        enemyBuildings.push_back(unit);
+    }
 }
 
 // Called whenever a unit gets hidden, with a pointer to the destroyed unit
