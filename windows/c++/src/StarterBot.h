@@ -40,6 +40,7 @@ class StarterBot
 	const BWAPI::UnitType engeneering = BWAPI::UnitTypes::Terran_Engineering_Bay;
 	const BWAPI::UnitType bunker = BWAPI::UnitTypes::Terran_Bunker;
 
+
 	int workerPrice = workerType.mineralPrice();
 	int marinePrice = marine.mineralPrice();
 	int medicMinPrice = medic.mineralPrice();
@@ -104,6 +105,7 @@ class StarterBot
 	int medCounter = 0;
 	bool enemyFound = false;
 	int attackWave = 0;
+	int attackCount = 20;
 	BWAPI::Position enemyBase;
 	BWAPI::Position playerBase = BWAPI::Position(BWAPI::Broodwar->self()->getStartLocation());
 	BWAPI::Position chokepoint = playerBase;

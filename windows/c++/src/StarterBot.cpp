@@ -12,7 +12,7 @@ StarterBot::StarterBot()
 void StarterBot::onStart()
 {
     // Set our BWAPI options here
-    BWAPI::Broodwar->setLocalSpeed(0);
+    BWAPI::Broodwar->setLocalSpeed(5);
     BWAPI::Broodwar->setFrameSkip(0);
 
     // Enable the flag that tells BWAPI top let users enter input while bot plays
@@ -173,6 +173,11 @@ void StarterBot::onFrame()
         build(barrack, 3, m_builder2);
     }
 
+    if (supplyUsed >= 60)
+    {
+        build(supply, 7, m_builder4);
+    }
+
     //switch from using supply to measure when to build things.
     if (barracksBuilt >= 3 && (factoryMinPrice + supplyPrice) <= mineralCash && factoryGasPrice <= gasCash && m_builder3 && m_builder4)
     {
@@ -211,7 +216,7 @@ void StarterBot::onFrame()
         {
             train(medic);
         }
-        if (attackWave < 2)
+        if (attackWave < 2) // train marines for the first two attack waves
         {
             train(marine);
         }
@@ -287,28 +292,8 @@ void StarterBot::sendIdleWorkersToRefineries()
     refineryStart = true;
 }
 
-BWAPI::Unit StarterBot::getenemyInRegion()
-{
-    for (auto& unit : BWAPI::Broodwar->enemy()->getUnits())
-    {
-        // if it's an overlord, don't worry about it for defense, we don't care what they see
-        if (unit->getType() == BWAPI::UnitTypes::Zerg_Overlord)
-        {
-            continue;
-        }
-
-        if (unit->getDistance(playerBase) < 800) // if the unit is close to our base
-        {
-            //BWAPI::Broodwar->printf("Enemy in region");
-            return unit;
-        }
-    }
-    return nullptr;
-}
-
 void StarterBot::attack()
 {
-    BWAPI::Unit enemyInRegion = getenemyInRegion(); // check if there is an enemy in our region
 
     // initialize random seed
     srand((unsigned int)time(0));
@@ -319,23 +304,16 @@ void StarterBot::attack()
         // Check the unit type, if it is an idle marine or medic, send it to attack
         if ((unit->getType() == marine || unit->getType() == medic || unit->getType() == firebat) || unit->getType() == vulture || unit->getType() == tank) // if this is a combat unit
         {
-            if (unit->getDistance(playerBase) < 800) // if unit is at player base
+            if (unit->getDistance(playerBase) < 1000) // if unit is at player base
             {
-                // Commented out this portion becuase it made our combat units 
-                // defenceless when the enemy attcks the base.
-                /*if (enemyInRegion != nullptr) // if base is under attack
-                {
-                    BWAPI::Broodwar->printf("Protect base!");
-                    unit->attack(enemyInRegion); // attack the enemy in region
-                }*/
-                if (medCounter >= 20 || mineralsExhausted == true) // if base is fine
+                if (medCounter >= attackCount || mineralsExhausted == true) 
                 {
                     unit->attack(enemyBase); // attack the enemy base
                 }
             }
             else if (unit->getDistance(playerBase) > 1000 && unit->isIdle()) // if unit is outside player base and not doing anything
             {
-                if (enemyBuildings.empty()) // if there are enemy units
+                if (enemyBuildings.size() > 3) // if there are enemy units
                 {
                     BWAPI::Broodwar->printf("Attack next enemy!");
                     unit->attack(enemyBuildings[0]);
@@ -346,19 +324,23 @@ void StarterBot::attack()
                     int x = rand() % 2000 - 1000;
                     int y = rand() % 2000 - 1000;
                     BWAPI::Position pos = BWAPI::Position(enemyBase.x + x, enemyBase.y + y).makeValid();
-                    BWAPI::Broodwar->printf("%d, %d, Finding next enemy at %d, %d", x, y, pos.x, pos.y);
+                    BWAPI::Broodwar->printf("Finding next enemy at %d, %d", pos.x, pos.y);
                     // scout around and attack anything on its way
                     unit->attack(pos);
                 }
             }
         }
     }
-    if (medCounter >= 20 && enemyInRegion == nullptr) // reset count and attack enemy if base is not under attack
+    if (medCounter >= attackCount) // reset count
     {
-        BWAPI::Broodwar->printf("Launch attack!");
+        BWAPI::Broodwar->printf("Launch attack! Units: %d", attackCount);
         if (attackWave < 2)
         {
             attackWave++;
+        }
+        else if (attackCount < 35)
+        {
+            attackCount += 5;
         }
         medCounter = 0;
     }
@@ -405,12 +387,12 @@ void StarterBot::scout()
     {
         // if we find an enemy unit, mark the location and return scout to base.
         BWAPI::Unit pos_enemy = m_scout->getClosestUnit();
-        if (BWAPI::Broodwar->self()->isEnemy(pos_enemy->getPlayer()))
+        if (BWAPI::Broodwar->self()->isEnemy(pos_enemy->getPlayer())) // if closest unit is an enemy
         {
-            enemyBase = m_scout->getLastCommand().getTargetPosition();
-            BWAPI::Broodwar->printf("Enemy Found, Enemy Base: %d, %d", enemyBase.x, enemyBase.y);
+            enemyBase = m_scout->getLastCommand().getTargetPosition(); // set enemy base as scout's last command position
             enemyFound = true;
-            m_scout->move(playerBase);
+            BWAPI::Broodwar->printf("Enemy Found: %d, %d", enemyBase.x, enemyBase.y);
+            m_scout->move(playerBase); // move scout back to player base
             return;
         }
         // code for sending the scout around the map.
@@ -443,12 +425,12 @@ void StarterBot::scout()
     {
         BWAPI::Broodwar->drawCircleMap(enemyBase, 32, BWAPI::Colors::Red, true);
         int distance = m_scout->getDistance(playerBase);
-        if (distance <= 600)
+        if (distance <= 700)
         {
             chokepoint = m_scout->getPosition(); // set chokepoint to the position of the scout
             BWAPI::Broodwar->printf("Chokepoint x: %d, Chokepoint y: %d", chokepoint.x, chokepoint.y);
         }
-        if (distance <= 650)
+        if (distance <= 750)
         {
             bunkerPos = m_scout->getPosition();
         }
@@ -685,32 +667,32 @@ void StarterBot::onUnitComplete(BWAPI::Unit unit)
         }
         BWAPI::Broodwar->printf("factory: %d\n", factoryBuilt);
     }
-    else if (unit->getType() == supply && unit->isCompleted())
+    else if (unit->getType() == supply)
     {
         supplyBuilt++;
     }
-    else if (unit->getType() == refinery && unit->isCompleted())
+    else if (unit->getType() == refinery)
     {
         refineryBuilt++;
         m_refinery = unit;
         sendIdleWorkersToRefineries();
     }
-    else if (unit->getType() == academy && unit->isCompleted())
+    else if (unit->getType() == academy)
     {
         m_academy = unit;
         academyBuilt++;
     }
-    else if (unit->getType() == engeneering && unit->isCompleted())
+    else if (unit->getType() == engeneering)
     {
         m_engeneering = unit;
         engeneeringBuilt++;
     }
-    else if (unit->getType() == bunker && unit->isCompleted())
+    else if (unit->getType() == bunker)
     {
         m_bunker = unit;
         bunkersBuilt++;
     }
-    else if (unit->getType() == machine && unit->isCompleted())
+    else if (unit->getType() == machine)
     {
         machineBuilt++;
     }
@@ -720,7 +702,7 @@ void StarterBot::onUnitComplete(BWAPI::Unit unit)
 // This is usually triggered when units appear from fog of war and become visible
 void StarterBot::onUnitShow(BWAPI::Unit unit)
 {
-    if (unit->getPlayer() == BWAPI::Broodwar->enemy() && unit->getType().isBuilding())
+    if (unit->getPlayer() == BWAPI::Broodwar->enemy() && unit->getType().isBuilding()) // if unit is an enemy building
     {
         for (unsigned int i = 0; i < enemyBuildings.size(); i++)
         {
