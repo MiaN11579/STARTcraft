@@ -51,13 +51,13 @@ void StarterBot::onFrame()
     {
         scout();
     }
-    if (m_scout && enemyFound == true && chokepoint != playerBase && bunkersBuilt == 0 && bunkerPrice <= mineralCash)
+    if (m_scout && enemyFound == true && chokepoint != playerBase && bunkersBuilt < 2 && bunkerPrice <= mineralCash)
     {
-        buildBunker();
+        buildBunker(); // build 3 bunkers once the bunker position is set
     }
-    if (bunkersBuilt >= 1 && m_bunker && bunkerFilled == false)
+    if (bunkersBuilt >= 2 && marinesBuilt > 10 && bunkerFilled == false && m_bunker)
     {
-        assignMarinesToBunker();
+        assignMarinesToBunker(); // assign marines to bunker once there are enough marines
     }
 
     // start of the build order.
@@ -178,7 +178,12 @@ void StarterBot::onFrame()
         build(supply, 7, m_builder4);
     }
 
-    //switch from using supply to measure when to build things.
+    if (supplyUsed >= 70)
+    {
+        build(supply, 8, m_builder4);
+    }
+
+    // switch from using supply to measure when to build things.
     if (barracksBuilt >= 3 && (factoryMinPrice + supplyPrice) <= mineralCash && factoryGasPrice <= gasCash && m_builder3 && m_builder4)
     {
         build(supply, 6, m_builder3);
@@ -260,8 +265,8 @@ void StarterBot::sendIdleWorkersToMinerals()
 {
     // Let's send all of our starting workers to the closest mineral to them
     // First we need to loop over all of the units that we (BWAPI::Broodwar->self()) own
-    const BWAPI::Unitset& myUnits = BWAPI::Broodwar->self()->getUnits();
-    for (auto& unit : myUnits)
+    const BWAPI::Unitset &myUnits = BWAPI::Broodwar->self()->getUnits();
+    for (auto &unit : myUnits)
     {
         // Check the unit type, if it is an idle worker, then we want to send it somewhere
         if (unit->getType().isWorker() && unit->isIdle())
@@ -295,18 +300,15 @@ void StarterBot::sendIdleWorkersToRefineries()
 void StarterBot::attack()
 {
 
-    // initialize random seed
-    srand((unsigned int)time(0));
-
-    const BWAPI::Unitset& myUnits = BWAPI::Broodwar->self()->getUnits();
-    for (auto& unit : myUnits)
+    const BWAPI::Unitset &myUnits = BWAPI::Broodwar->self()->getUnits();
+    for (auto &unit : myUnits)
     {
-        // Check the unit type, if it is an idle marine or medic, send it to attack
+        // Check the unit type, if it is a combat unit, send it to attack
         if ((unit->getType() == marine || unit->getType() == medic || unit->getType() == firebat) || unit->getType() == vulture || unit->getType() == tank) // if this is a combat unit
         {
             if (unit->getDistance(playerBase) < 1000) // if unit is at player base
             {
-                if (medCounter >= attackCount || mineralsExhausted == true) 
+                if (medCounter >= attackCount || mineralsExhausted == true) // if there are enough troops for an attack wave
                 {
                     unit->attack(enemyBase); // attack the enemy base
                 }
@@ -320,12 +322,13 @@ void StarterBot::attack()
                 }
                 else // if no enemy buildings in sight, search for one
                 {
+                    srand((unsigned int)time(0)); // initialize random seed
                     // generate random coordinates within 1000 radius of the enemy base
                     int x = rand() % 2000 - 1000;
                     int y = rand() % 2000 - 1000;
                     BWAPI::Position pos = BWAPI::Position(enemyBase.x + x, enemyBase.y + y).makeValid();
                     BWAPI::Broodwar->printf("Finding next enemy at %d, %d", pos.x, pos.y);
-                    // scout around and attack anything on its way
+                    // scout around and attack anything on its way to new position
                     unit->attack(pos);
                 }
             }
@@ -334,25 +337,25 @@ void StarterBot::attack()
     if (medCounter >= attackCount) // reset count
     {
         BWAPI::Broodwar->printf("Launch attack! Units: %d", attackCount);
-        if (attackWave < 2)
+        if (attackWave < 2) // increment the first two attack waves for marines
         {
             attackWave++;
         }
-        else if (attackCount < 35)
+        else if (attackCount < 30) // increase attack count for every wave after that
         {
             attackCount += 5;
         }
-        medCounter = 0;
+        medCounter -= 8; // reset count for the next wave
     }
 }
 
 // Train combat units in barracks
 void StarterBot::train(BWAPI::UnitType type)
 {
-    const BWAPI::Unitset& myUnits = BWAPI::Broodwar->self()->getUnits();
-    for (auto& unit : myUnits)
+    const BWAPI::Unitset &myUnits = BWAPI::Broodwar->self()->getUnits();
+    for (auto &unit : myUnits)
     {
-        // Check the unit type, if it is an idle barrack, train more marine
+        // Check the unit type, if it is an idle barrack, train more combat units
         if (unit->getType() == BWAPI::UnitTypes::Terran_Barracks && !unit->isTraining() && type.mineralPrice() <= mineralCash)
         {
             bool train = unit->train(type);
@@ -366,10 +369,10 @@ void StarterBot::train(BWAPI::UnitType type)
 
 void StarterBot::factoryTrain(BWAPI::UnitType type)
 {
-    const BWAPI::Unitset& myUnits = BWAPI::Broodwar->self()->getUnits();
-    for (auto& unit : myUnits)
+    const BWAPI::Unitset &myUnits = BWAPI::Broodwar->self()->getUnits();
+    for (auto &unit : myUnits)
     {
-        // Check the unit type, if it is an idle barrack, train more marine
+        // Check the unit type, if it is an idle barrack, train more units
         if (unit->getType() == BWAPI::UnitTypes::Terran_Factory && !unit->isTraining() && type.mineralPrice() <= mineralCash)
         {
             bool train = unit->train(type);
@@ -396,14 +399,14 @@ void StarterBot::scout()
             return;
         }
         // code for sending the scout around the map.
-        auto& startLocations = BWAPI::Broodwar->getStartLocations();
+        auto &startLocations = BWAPI::Broodwar->getStartLocations();
         for (BWAPI::TilePosition tp : startLocations) // for each start location
         {
             BWAPI::TilePosition tp1 = BWAPI::TilePosition(tp.x + 5, tp.y + 5);
             BWAPI::TilePosition tp2 = BWAPI::TilePosition(tp.x - 5, tp.y + 5);
             BWAPI::TilePosition tp3 = BWAPI::TilePosition(tp.x + 5, tp.y - 5);
             BWAPI::TilePosition tp4 = BWAPI::TilePosition(tp.x - 5, tp.y - 5);
-            std::deque<BWAPI::TilePosition> surroundings = { tp, tp1, tp2, tp3, tp4 }; // add all the surrounding tiles to the deque
+            std::deque<BWAPI::TilePosition> surroundings = {tp, tp1, tp2, tp3, tp4}; // add all the surrounding tiles to the deque
             for (BWAPI::TilePosition tile : surroundings)
             {
                 if (!BWAPI::Broodwar->isExplored(tile))
@@ -411,11 +414,11 @@ void StarterBot::scout()
                     BWAPI::Position pos(tile);
                     BWAPI::Broodwar->drawCircleMap(pos, 32, BWAPI::Colors::Red, true);
                     auto command = m_scout->getLastCommand();
-                    if (command.getTargetPosition() == pos)
+                    if (command.getTargetPosition() == pos) // if scout is going to this tile, do nothing
                     {
                         return;
                     }
-                    m_scout->move(pos);
+                    m_scout->move(pos); // else, move scout to this tile
                     return;
                 }
             }
@@ -425,35 +428,41 @@ void StarterBot::scout()
     {
         BWAPI::Broodwar->drawCircleMap(enemyBase, 32, BWAPI::Colors::Red, true);
         int distance = m_scout->getDistance(playerBase);
-        if (distance <= 700)
+        if (distance <= 650)
         {
-            chokepoint = m_scout->getPosition(); // set chokepoint to the position of the scout
+            chokepoint = m_scout->getPosition(); // set chokepoint position
             BWAPI::Broodwar->printf("Chokepoint x: %d, Chokepoint y: %d", chokepoint.x, chokepoint.y);
         }
-        if (distance <= 750)
+        if (distance <= 700)
         {
-            bunkerPos = m_scout->getPosition();
+            bunkerPos = m_scout->getPosition(); // set bunker position
         }
     }
 }
 
 void StarterBot::assignMarinesToBunker()
 {
-    int count = 0;
-    const BWAPI::Unitset& myUnits = BWAPI::Broodwar->self()->getUnits();
-    for (auto& unit : myUnits)
+    const BWAPI::Unitset &myUnits = BWAPI::Broodwar->self()->getUnits();
+    for (auto &bunkerBuilding : myUnits)
     {
-        if (unit->getType() == marine && count < 4)
+        if (bunkerBuilding->getType() == bunker)
         {
-            unit->rightClick(m_bunker);
-            count++;
-        }
-        if (count >= 4)
-        {
-            bunkerFilled = true;
-            break;
+            int count = 0;
+            for (auto &unit : myUnits)
+            {
+                if (unit->getType() == marine && unit->isIdle() && count < 4)
+                {
+                    unit->rightClick(bunkerBuilding);
+                    count++;
+                }
+                if (count == 4)
+                {
+                    break;
+                }
+            }
         }
     }
+    bunkerFilled = true;
 }
 
 // Build given type of building to given required number
