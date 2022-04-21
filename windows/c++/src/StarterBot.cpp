@@ -325,9 +325,9 @@ void StarterBot::attack()
                 }
                 else // if no enemy buildings in sight, search for one
                 {
-                    // generate random coordinates within 1000 radius of the enemy base
-                    int x = rand() % 2000 - 1000;
-                    int y = rand() % 2000 - 1000;
+                    // generate random coordinates within 1500 radius of the enemy base
+                    int x = rand() % 3000 - 1500;
+                    int y = rand() % 3000 - 1500;
                     BWAPI::Position pos = BWAPI::Position(enemyBase.x + x, enemyBase.y + y).makeValid();
                     BWAPI::Broodwar->printf("Finding next enemy at %d, %d", pos.x, pos.y);
                     // scout around and attack anything on its way to new position
@@ -343,11 +343,11 @@ void StarterBot::attack()
         {
             attackWave++;
         }
-        else if (attackCount < 30) // increase attack count for every wave after that
+        else if (attackCount < 35) // increase attack count for every wave after that
         {
             attackCount += 5;
         }
-        medCounter -= 8; // reset count for the next wave
+        medCounter = 0; // reset count for the next wave
     }
 }
 
@@ -369,6 +369,7 @@ void StarterBot::train(BWAPI::UnitType type)
     }
 }
 
+// Train combat units in factories
 void StarterBot::factoryTrain(BWAPI::UnitType type)
 {
     const BWAPI::Unitset& myUnits = BWAPI::Broodwar->self()->getUnits();
@@ -386,6 +387,7 @@ void StarterBot::factoryTrain(BWAPI::UnitType type)
     }
 }
 
+// Scout for enemy base
 void StarterBot::scout()
 {
     if (enemyFound == false)
@@ -442,25 +444,6 @@ void StarterBot::scout()
     }
 }
 
-void StarterBot::assignMarinesToBunker()
-{
-    int count = 0;
-    const BWAPI::Unitset& myUnits = BWAPI::Broodwar->self()->getUnits();
-    for (auto& unit : myUnits)
-    {
-        if (unit->getType() == marine && count < 4)
-        {
-            unit->rightClick(m_bunker);
-            count++;
-        }
-        if (count >= 4)
-        {
-            bunkerFilled = true;
-            break;
-        }
-    }
-}
-
 // Build given type of building to given required number
 void StarterBot::build(BWAPI::UnitType type, int required, BWAPI::Unit builder)
 {
@@ -483,6 +466,29 @@ void StarterBot::build(BWAPI::UnitType type, int required, BWAPI::Unit builder)
     }
 }
 
+
+// Assign marines to bunker
+void StarterBot::assignMarinesToBunker()
+{
+    int count = 0;
+    const BWAPI::Unitset& myUnits = BWAPI::Broodwar->self()->getUnits();
+    for (auto& unit : myUnits)
+    {
+        if (unit->getType() == marine && count < 4)
+        {
+            unit->rightClick(m_bunker);
+            count++;
+        }
+        if (count >= 4)
+        {
+            bunkerFilled = true;
+            break;
+        }
+    }
+}
+
+
+// Build bunker for defense
 void StarterBot::buildBunker()
 {
     BWAPI::TilePosition desiredPos = BWAPI::TilePosition(bunkerPos);
@@ -494,13 +500,6 @@ void StarterBot::buildBunker()
     {
         BWAPI::Broodwar->printf("Started Building %s", bunker.getName().c_str());
     }
-}
-
-// Draw some relevent information to the screen to help us debug the bot
-void StarterBot::drawDebugInformation()
-{
-    Tools::DrawUnitCommands();
-    Tools::DrawUnitBoundingBoxes();
 }
 
 // Called whenever a unit is destroyed, with a pointer to the unit
